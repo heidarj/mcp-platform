@@ -77,12 +77,12 @@ variable "key_vault_secret_refs" {
 variable "registry" {
   description = "Optional private registry configuration, including GHCR credentials when required."
   type = object({
-    server                             = string
-    username                           = string
-    password_secret_name               = string
-    password_secret_value              = optional(string)
+    server                              = string
+    username                            = string
+    password_secret_name                = string
+    password_secret_value               = optional(string)
     password_secret_key_vault_secret_id = optional(string)
-    identity                           = optional(string)
+    identity                            = optional(string)
   })
   default = null
 

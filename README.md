@@ -23,6 +23,10 @@ This repository intentionally keeps application code out of the platform layer. 
 
 A consuming repository can keep its own application code, Dockerfile, and Terraform while delegating deployment logic to this repository.
 
+> **Production callers** should pin to a tag or commit SHA instead of `@main`
+> to avoid unexpected changes. For example:
+> `heidarj/mcp-platform/.github/workflows/build-container.yml@v0.1.0`
+
 ```yaml
 name: deploy
 
@@ -30,6 +34,15 @@ on:
   push:
     branches:
       - main
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
 
 jobs:
   build:
@@ -40,7 +53,8 @@ jobs:
       dockerfile_path: ./Dockerfile
       context_path: .
       run_tests: true
-    secrets: inherit
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
   deploy:
     needs: build
@@ -49,8 +63,11 @@ jobs:
       container_app_name: ${{ vars.CONTAINER_APP_NAME }}
       resource_group_name: ${{ vars.RESOURCE_GROUP_NAME }}
       image: ${{ needs.build.outputs.image }}
-    secrets: inherit
 ```
+
+> **Note:** If your repositories are in the same GitHub organization or
+> enterprise, you can use `secrets: inherit` as a shortcut instead of mapping
+> each secret explicitly.
 
 Additional workflow guidance is available in:
 

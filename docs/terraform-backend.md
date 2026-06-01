@@ -6,7 +6,14 @@ The Terraform workflows in this repository assume the caller repository stores s
 
 - `TF_BACKEND_HOSTNAME`
 - `TF_BACKEND_ORGANIZATION`
-- `TF_BACKEND_WORKSPACE`
+
+> `TF_BACKEND_WORKSPACE` is the recommended caller repository variable name.
+> The reusable Terraform workflows accept it through the `workspace_name`
+> input parameter. For example:
+>
+> ```yaml
+> workspace_name: ${{ vars.TF_BACKEND_WORKSPACE }}
+> ```
 
 ## Required repository secret
 

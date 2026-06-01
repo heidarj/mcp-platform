@@ -24,9 +24,34 @@
 
 Typical caller-side variables and secrets are:
 
-- Variable: `GHCR_USERNAME`
+- Variable: `GHCR_USERNAME` — only needed when using a PAT; omit to use `github.actor`
 - Variable: `CONTAINER_APP_NAME`
 - Variable: `RESOURCE_GROUP_NAME`
-- Secret: `GHCR_PAT`
+- Secret: `GHCR_PAT` — required only for cross-repo or private package publishing; omit to use `GITHUB_TOKEN`
 
-Call the reusable workflows with `secrets: inherit` so the workflows execute with the caller repository's package and infrastructure credentials.
+The build workflow defaults to `GITHUB_TOKEN` for same-repository GHCR
+publishing. Supply `GHCR_PAT` only when the image is pushed to a registry
+owned by a different user/org or when the package visibility is private and
+`GITHUB_TOKEN` does not have enough access.
+
+### Caller permissions
+
+Because reusable workflows cannot elevate beyond what the caller grants, the
+caller workflow must include at least:
+
+```yaml
+permissions:
+  contents: read
+  packages: write   # for GHCR publishing
+  id-token: write   # for Azure OIDC
+```
+
+### Explicit secret mapping
+
+```yaml
+secrets:
+  GHCR_PAT: ${{ secrets.GHCR_PAT }}
+```
+
+If your repositories share an organization or enterprise,
+`secrets: inherit` can replace the explicit mapping above.

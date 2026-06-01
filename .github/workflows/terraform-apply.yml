@@ -1,0 +1,65 @@
+name: Terraform apply
+
+on:
+  workflow_call:
+    inputs:
+      terraform_directory:
+        description: Terraform directory in the caller repository.
+        required: true
+        type: string
+      workspace_name:
+        description: HCP Terraform workspace and GitHub environment name.
+        required: true
+        type: string
+    secrets:
+      TF_API_TOKEN:
+        description: Caller repository HCP Terraform API token.
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.workspace_name }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure Terraform credentials
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.terraform.d"
+          cat <<CONFIG > "$HOME/.terraform.d/credentials.tfrc.json"
+          {
+            "credentials": {
+              "${{ vars.TF_BACKEND_HOSTNAME }}": {
+                "token": "${{ secrets.TF_API_TOKEN }}"
+              }
+            }
+          }
+          CONFIG
+          chmod 600 "$HOME/.terraform.d/credentials.tfrc.json"
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize Terraform backend
+        run: |
+          terraform -chdir="${{ inputs.terraform_directory }}" init -input=false -reconfigure \
+            -backend-config="hostname=${{ vars.TF_BACKEND_HOSTNAME }}" \
+            -backend-config="organization=${{ vars.TF_BACKEND_ORGANIZATION }}" \
+            -backend-config="workspaces.name=${{ inputs.workspace_name }}"
+
+      - name: Apply Terraform
+        working-directory: ${{ inputs.terraform_directory }}
+        run: terraform apply -input=false -auto-approve

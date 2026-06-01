@@ -1,0 +1,155 @@
+name: Terraform plan
+
+on:
+  workflow_call:
+    inputs:
+      terraform_directory:
+        description: Terraform directory in the caller repository.
+        required: true
+        type: string
+      workspace_name:
+        description: HCP Terraform workspace name.
+        required: true
+        type: string
+    secrets:
+      TF_API_TOKEN:
+        description: Caller repository HCP Terraform API token.
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure Terraform credentials
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.terraform.d"
+          cat <<CONFIG > "$HOME/.terraform.d/credentials.tfrc.json"
+          {
+            "credentials": {
+              "${{ vars.TF_BACKEND_HOSTNAME }}": {
+                "token": "${{ secrets.TF_API_TOKEN }}"
+              }
+            }
+          }
+          CONFIG
+          chmod 600 "$HOME/.terraform.d/credentials.tfrc.json"
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize Terraform backend
+        run: |
+          terraform -chdir="${{ inputs.terraform_directory }}" init -input=false -reconfigure \
+            -backend-config="hostname=${{ vars.TF_BACKEND_HOSTNAME }}" \
+            -backend-config="organization=${{ vars.TF_BACKEND_ORGANIZATION }}" \
+            -backend-config="workspaces.name=${{ inputs.workspace_name }}"
+
+      - name: Generate Terraform plan
+        id: plan
+        shell: bash
+        working-directory: ${{ inputs.terraform_directory }}
+        run: |
+          set +e
+          terraform plan -no-color -input=false -out=tfplan.binary -detailed-exitcode > tfplan.txt
+          status=$?
+          set -e
+
+          if [ "$status" -eq 1 ]; then
+            cat tfplan.txt
+            exit 1
+          fi
+
+          terraform show -no-color tfplan.binary > tfplan-show.txt
+          echo "exitcode=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Terraform plan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ inputs.workspace_name }}
+          path: |
+            ${{ inputs.terraform_directory }}/tfplan.binary
+            ${{ inputs.terraform_directory }}/tfplan.txt
+            ${{ inputs.terraform_directory }}/tfplan-show.txt
+
+      - name: Add Terraform plan to job summary
+        shell: bash
+        working-directory: ${{ inputs.terraform_directory }}
+        run: |
+          {
+            echo "## Terraform plan"
+            echo
+            echo "- Workspace: \`${{ inputs.workspace_name }}\`"
+            echo "- Directory: \`${{ inputs.terraform_directory }}\`"
+            echo "- Detailed exit code: \`${{ steps.plan.outputs.exitcode }}\`"
+            echo
+            echo '```terraform'
+            sed -n '1,400p' tfplan-show.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment Terraform plan on pull requests
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        env:
+          TERRAFORM_DIRECTORY: ${{ inputs.terraform_directory }}
+          TERRAFORM_WORKSPACE: ${{ inputs.workspace_name }}
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- mcp-platform-terraform-plan -->';
+            const file = `${process.env.TERRAFORM_DIRECTORY}/tfplan-show.txt`;
+            const plan = fs.readFileSync(file, 'utf8');
+            const truncated = plan.length > 60000 ? `${plan.slice(0, 60000)}\n...\n[truncated]` : plan;
+            const body = [
+              marker,
+              `## Terraform plan (${process.env.TERRAFORM_WORKSPACE})`,
+              '',
+              `Directory: \`${process.env.TERRAFORM_DIRECTORY}\``,
+              '',
+              '```terraform',
+              truncated,
+              '```',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) => comment.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }

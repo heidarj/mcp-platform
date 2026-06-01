@@ -1,0 +1,41 @@
+name: Deploy container app
+
+on:
+  workflow_call:
+    inputs:
+      container_app_name:
+        description: Azure Container App name.
+        required: true
+        type: string
+      resource_group_name:
+        description: Azure resource group containing the Container App.
+        required: true
+        type: string
+      image:
+        description: Fully qualified image reference to deploy.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy new container app revision
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az containerapp update \
+              --name "${{ inputs.container_app_name }}" \
+              --resource-group "${{ inputs.resource_group_name }}" \
+              --image "${{ inputs.image }}"

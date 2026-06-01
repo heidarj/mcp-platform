@@ -1,0 +1,102 @@
+name: Build container
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: Name of the image repository to publish to GHCR.
+        required: true
+        type: string
+      dotnet_version:
+        description: .NET SDK version used when tests are enabled.
+        required: false
+        default: 9.0.x
+        type: string
+      dockerfile_path:
+        description: Path to the Dockerfile in the caller repository.
+        required: false
+        default: ./Dockerfile
+        type: string
+      context_path:
+        description: Docker build context in the caller repository.
+        required: false
+        default: .
+        type: string
+      run_tests:
+        description: Whether to execute dotnet tests before building the image.
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      GHCR_PAT:
+        description: >
+          PAT for publishing images to GHCR. Required only for cross-repo or
+          private package publishing. When omitted the workflow falls back to
+          GITHUB_TOKEN for same-repository GHCR publishing.
+        required: false
+    outputs:
+      image:
+        description: Fully qualified image reference pushed to GHCR.
+        value: ${{ jobs.build.outputs.image }}
+      image_tag:
+        description: Tag used for the image push.
+        value: ${{ jobs.build.outputs.image_tag }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        if: ${{ inputs.run_tests }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet_version }}
+
+      - name: Run tests
+        if: ${{ inputs.run_tests }}
+        working-directory: ${{ inputs.context_path }}
+        run: dotnet test --configuration Release
+
+      - name: Prepare image metadata
+        id: meta
+        shell: bash
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          image_repository="ghcr.io/${owner}/${{ inputs.image_name }}"
+          image_tag="${GITHUB_SHA}"
+          tags="${image_repository}:${image_tag}"
+
+          # Add a branch tag on pushes (e.g. "main")
+          if [[ "$GITHUB_REF" == refs/heads/* ]]; then
+            branch="${GITHUB_REF#refs/heads/}"
+            tags="${tags},${image_repository}:${branch}"
+          fi
+
+          echo "image=${image_repository}:${image_tag}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ vars.GHCR_USERNAME || github.actor }}
+          password: ${{ secrets.GHCR_PAT || github.token }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context_path }}
+          file: ${{ inputs.dockerfile_path }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}

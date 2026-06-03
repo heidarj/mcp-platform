@@ -9,8 +9,9 @@ variable "resource_group_name" {
 }
 
 variable "location" {
-  description = "Azure region for the service. Included to align with shared platform outputs."
+  description = "Azure region for the service. Accepted to align with shared platform outputs but not used by this module."
   type        = string
+  default     = null
 }
 
 variable "container_app_environment_id" {

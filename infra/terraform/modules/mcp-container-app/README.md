@@ -14,7 +14,6 @@ Those are expected to come from `infra/terraform/platform` outputs.
 
 - `name`
 - `resource_group_name`
-- `location`
 - `container_app_environment_id`
 - `image`
 - `target_port`
@@ -26,6 +25,10 @@ Those are expected to come from `infra/terraform/platform` outputs.
 - `secret_env_vars`
 - `key_vault_secret_refs`
 - `tags`
+
+## Optional inputs
+
+- `location` — Azure region. Accepted to align with shared platform outputs but not used by this module (`default = null`).
 
 ## Defaults
 

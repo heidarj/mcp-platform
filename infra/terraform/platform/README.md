@@ -12,15 +12,10 @@ It is intended to back a dedicated HCP Terraform workspace such as
 
 ## Usage
 
-```hcl
-terraform {
-  backend "remote" {}
-}
+Run Terraform from this directory (or set your HCP Terraform workspace working directory to `infra/terraform/platform`):
 
-module "platform" {
-  source = "git::https://github.com/heidarj/mcp-platform.git//infra/terraform/platform?ref=main"
-}
-```
+    terraform init
+    terraform apply
 
 Typical variables:
 

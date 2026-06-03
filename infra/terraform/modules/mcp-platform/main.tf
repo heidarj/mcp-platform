@@ -33,6 +33,7 @@ resource "azurerm_log_analytics_workspace" "main" {
   name                = local.log_analytics_workspace_name
   location            = var.location
   resource_group_name = local.resource_group_name
+  depends_on          = [azurerm_resource_group.main]
   sku                 = var.log_analytics_workspace_sku
   retention_in_days   = var.log_analytics_workspace_retention_in_days
   tags                = local.tags
@@ -55,6 +56,7 @@ resource "azurerm_key_vault" "main" {
   rbac_authorization_enabled = true
   purge_protection_enabled   = var.key_vault_purge_protection_enabled
   soft_delete_retention_days = var.key_vault_soft_delete_retention_days
+  depends_on                 = [azurerm_resource_group.main]
   tags                       = local.tags
 }
 

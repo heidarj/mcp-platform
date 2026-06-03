@@ -10,7 +10,7 @@
 - shared Azure Key Vault
 - shared Terraform modules and reusable workflow contracts
 
-The shared Terraform root is `/tmp/workspace/heidarj/mcp-platform/infra/terraform/platform`.
+The shared Terraform root is `infra/terraform/platform`.
 
 Its outputs are intended to be consumed by app repositories:
 

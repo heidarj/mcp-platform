@@ -2,6 +2,12 @@
 
 Use this checklist when bringing a new MCP service repository onto the shared platform.
 
+For the platform/app Terraform split and Key Vault conventions, see:
+
+- `docs/service-onboarding.md`
+- `docs/platform-iac.md`
+- `docs/key-vault.md`
+
 ## New MCP service checklist
 
 1. Create the application repository.

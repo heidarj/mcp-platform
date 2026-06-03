@@ -2,6 +2,9 @@
 
 The Terraform workflows in this repository assume the caller repository stores state in HCP Terraform and passes backend configuration through repository variables.
 
+See `docs/terraform-state.md` for the recommended workspace split between the
+shared platform workspace and per-app workspaces.
+
 ## Required repository variables
 
 - `TF_BACKEND_HOSTNAME`

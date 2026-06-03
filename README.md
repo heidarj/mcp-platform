@@ -2,22 +2,31 @@
 
 `mcp-platform` is the shared deployment platform for independent MCP services such as `outlook.mcpar.is`, `kronan.mcpar.is`, and future `*.mcpar.is` repositories.
 
-This repository intentionally keeps application code out of the platform layer. It centralizes reusable GitHub Actions workflows, deployment conventions, onboarding guidance, and room for future shared Terraform modules.
+This repository intentionally keeps application code out of the platform layer. It centralizes reusable GitHub Actions workflows, deployment conventions, onboarding guidance, shared Azure platform infrastructure, and reusable Terraform modules for MCP services.
 
 ## What lives here
 
 - Reusable GitHub Actions workflows for building containers, deploying Azure Container Apps, and running Terraform
 - Shared deployment and authentication conventions
+- Shared Azure platform Terraform for MCP services
+- Reusable Terraform modules for shared platform infrastructure and per-service Container Apps
 - Onboarding documentation for new MCP services
-- A placeholder location for future shared Terraform modules
 
 ## What does **not** live here
 
 - MCP server implementations
 - `.NET` application projects
 - Application Dockerfiles
-- Application-specific Terraform
+- Thin application-specific Terraform roots that live in consuming repositories and call the shared modules from this repository
 - Application-specific secrets
+
+## Shared Terraform
+
+The shared Terraform code lives under:
+
+- `infra/terraform/platform` — shared Azure platform root
+- `infra/terraform/modules/mcp-platform` — shared resource group / Log Analytics / Container Apps Environment / Key Vault module
+- `infra/terraform/modules/mcp-container-app` — one-service Azure Container App module
 
 ## Calling the reusable workflows
 
@@ -72,8 +81,12 @@ jobs:
 Additional workflow guidance is available in:
 
 - `docs/onboarding.md`
+- `docs/platform-iac.md`
+- `docs/service-onboarding.md`
 - `docs/github-oidc.md`
+- `docs/key-vault.md`
 - `docs/container-apps.md`
+- `docs/terraform-state.md`
 - `docs/terraform-backend.md`
 
 ## Licensing

@@ -24,6 +24,7 @@ permissions:
 jobs:
   plan:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.workspace_name }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4

@@ -33,3 +33,34 @@ Its outputs are intended to be consumed by app repositories:
 
 Each MCP service repository should keep a thin Terraform root that consumes the
 shared outputs and creates exactly one service-specific Container App.
+
+## Platform workflow configuration
+
+The shared platform Terraform caller workflow is
+`.github/workflows/platform-terraform.yml`. It runs
+`infra/terraform/platform` against the HCP Terraform workspace and GitHub
+environment `mcp-platform-prod`.
+
+### Required GitHub repository variables
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `TF_BACKEND_HOSTNAME`
+- `TF_BACKEND_ORGANIZATION`
+
+### Required GitHub repository secret
+
+- `TF_API_TOKEN`
+
+### Required GitHub environment
+
+- `mcp-platform-prod`
+
+### Required Azure federated credential subjects
+
+The Azure app registration referenced by `AZURE_CLIENT_ID` must allow:
+
+- `repo:heidarj/mcp-platform:pull_request`
+- `repo:heidarj/mcp-platform:ref:refs/heads/main`
+- `repo:heidarj/mcp-platform:environment:mcp-platform-prod`

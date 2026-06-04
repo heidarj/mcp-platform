@@ -1,0 +1,53 @@
+name: Platform Terraform
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/platform/**"
+      - "infra/terraform/modules/**"
+      - ".github/workflows/platform-terraform.yml"
+      - ".github/workflows/terraform-*.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/terraform/platform/**"
+      - "infra/terraform/modules/**"
+      - ".github/workflows/platform-terraform.yml"
+      - ".github/workflows/terraform-*.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mcp-platform-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  validate:
+    uses: ./.github/workflows/terraform-validate.yml
+    with:
+      terraform_directory: infra/terraform/platform
+
+  plan:
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: validate
+    uses: ./.github/workflows/terraform-plan.yml
+    with:
+      terraform_directory: infra/terraform/platform
+      workspace_name: mcp-platform-prod
+    secrets:
+      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+
+  apply:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: validate
+    uses: ./.github/workflows/terraform-apply.yml
+    with:
+      terraform_directory: infra/terraform/platform
+      workspace_name: mcp-platform-prod
+    secrets:
+      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}

@@ -24,6 +24,9 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     environment: ${{ inputs.workspace_name }}
+    env:
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_tenant_id: ${{ vars.AZURE_TENANT_ID }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -54,11 +57,22 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Initialize Terraform backend
+        shell: bash
         run: |
+          backend_config="$(mktemp)"
+          trap 'rm -f "$backend_config"' EXIT
+
+          cat <<CONFIG > "$backend_config"
+          hostname     = "${{ vars.TF_BACKEND_HOSTNAME }}"
+          organization = "${{ vars.TF_BACKEND_ORGANIZATION }}"
+
+          workspaces {
+            name = "${{ inputs.workspace_name }}"
+          }
+          CONFIG
+
           terraform -chdir="${{ inputs.terraform_directory }}" init -input=false -reconfigure \
-            -backend-config="hostname=${{ vars.TF_BACKEND_HOSTNAME }}" \
-            -backend-config="organization=${{ vars.TF_BACKEND_ORGANIZATION }}" \
-            -backend-config="workspaces.name=${{ inputs.workspace_name }}"
+            -backend-config="$backend_config"
 
       - name: Plan and apply Terraform
         working-directory: ${{ inputs.terraform_directory }}
